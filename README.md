@@ -55,7 +55,27 @@ python3 roku_tui.py          # uses tv_ip from config.json; or --ip 192.168.1.50
 - Keys: arrows navigate · enter OK · delete back · `h` home ·
   space play/pause · `<`/`>` rew/fwd · `r` replay · `i` options ·
   `+`/`-` volume · `m` mute · `p` power · `a` app picker · `t` type mode ·
-  `q` quit
+  `^d` dictate · `q` quit
+
+### Dictation (macOS)
+
+In type mode, press `ctrl-d` to speak instead of type — handy for search
+boxes. Transcription runs on-device via Apple's speech recognizer through
+the [`hear`](https://sveinbjorn.org/hear) CLI (the TUI itself stays
+zero-dependency; it just shells out):
+
+```sh
+brew install sveinbjornt/hear/hear   # or grab the prebuilt binary from the site
+```
+
+- While dictating: the live transcript is shown; enter stops, esc cancels.
+- By default you then review the text — enter sends it to the TV as
+  keystrokes, esc discards, `ctrl-d` re-records.
+- To skip the review and send as soon as you stop: `--dictate send`, or set
+  `"dictation_send": "send"` in `config.json`.
+- First use prompts for microphone + speech-recognition permission for your
+  terminal app. Linux/Windows: the TUI works as before; dictation shows a
+  "macOS only" hint.
 
 <p align="center">
   <img src="screenshots/tui.png" alt="TUI remote with live status bar" width="680">
