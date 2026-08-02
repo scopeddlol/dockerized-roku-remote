@@ -10,6 +10,7 @@ import re
 import subprocess
 import sys
 import time
+import traceback
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -138,6 +139,17 @@ class Handler(SimpleHTTPRequestHandler):
         length = int(self.headers.get("Content-Length") or 0)
         return self.rfile.read(length) if length else b""
 
+    def fail(self, exc):
+        """Record a route failure, then report it to the client as a 502.
+
+        Without this the traceback is lost: the client gets an error body and
+        the server keeps no record of what actually broke. A client that has
+        already hung up makes send_json raise, so log first.
+        """
+        print(f"{self.command} {self.path} failed: {exc!r}", file=sys.stderr)
+        traceback.print_exc()
+        self.send_json({"error": str(exc)}, 502)
+
     def do_GET(self):
         route = urllib.parse.urlparse(self.path).path
         try:
@@ -166,7 +178,7 @@ class Handler(SimpleHTTPRequestHandler):
             else:
                 super().do_GET()
         except Exception as exc:
-            self.send_json({"error": str(exc)}, 502)
+            self.fail(exc)
 
     def do_POST(self):
         route = urllib.parse.urlparse(self.path).path
@@ -208,7 +220,7 @@ class Handler(SimpleHTTPRequestHandler):
             else:
                 self.send_json({"error": "not found"}, 404)
         except Exception as exc:
-            self.send_json({"error": str(exc)}, 502)
+            self.fail(exc)
 
 
 class Server(ThreadingHTTPServer):
