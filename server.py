@@ -8,6 +8,7 @@ and observe the TV. Run with: python3 server.py
 import json
 import re
 import subprocess
+import sys
 import time
 import urllib.parse
 import urllib.request
@@ -210,6 +211,20 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_json({"error": str(exc)}, 502)
 
 
+class Server(ThreadingHTTPServer):
+    """Threading server that doesn't log clients hanging up mid-request.
+
+    Browsers routinely abort idle keep-alive connections, which surfaces as
+    ConnectionResetError/BrokenPipeError from the socket read or write. Those
+    are normal and were burying real failures in the log; anything else still
+    gets the default traceback.
+    """
+
+    def handle_error(self, request, client_address):
+        if not isinstance(sys.exc_info()[1], (ConnectionError, TimeoutError)):
+            super().handle_error(request, client_address)
+
+
 def lan_ips():
     """This machine's LAN IPv4 addresses (what other devices should browse to)."""
     try:
@@ -224,7 +239,7 @@ def lan_ips():
 def main():
     port = int(CONFIG.get("server_port", 8000))
     handler = partial(Handler, directory=str(ROOT / "static"))
-    server = ThreadingHTTPServer(("0.0.0.0", port), handler)
+    server = Server(("0.0.0.0", port), handler)
     suffix = "" if port == 80 else f":{port}"
     # flush=True so the banner reaches server.log immediately when stdout is a
     # file (launchd) rather than sitting in a block buffer until the process dies.
