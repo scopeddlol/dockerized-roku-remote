@@ -60,6 +60,8 @@ $SUDO tee "$PLIST" > /dev/null <<EOF
     <string>$REPO_DIR/server.py</string>
   </array>
   <key>WorkingDirectory</key><string>$REPO_DIR</string>
+  <key>EnvironmentVariables</key>
+  <dict><key>PYTHONUNBUFFERED</key><string>1</string></dict>
   <key>StandardOutPath</key><string>$REPO_DIR/server.log</string>
   <key>StandardErrorPath</key><string>$REPO_DIR/server.log</string>
   <key>RunAtLoad</key><true/>

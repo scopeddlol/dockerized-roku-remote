@@ -226,9 +226,11 @@ def main():
     handler = partial(Handler, directory=str(ROOT / "static"))
     server = ThreadingHTTPServer(("0.0.0.0", port), handler)
     suffix = "" if port == 80 else f":{port}"
-    print(f"Roku remote -> TV {CONFIG['tv_ip']}, reachable at:")
+    # flush=True so the banner reaches server.log immediately when stdout is a
+    # file (launchd) rather than sitting in a block buffer until the process dies.
+    print(f"Roku remote -> TV {CONFIG['tv_ip']}, reachable at:", flush=True)
     for ip in lan_ips() or ["<this-machine's-ip>"]:
-        print(f"  http://{ip}{suffix}")
+        print(f"  http://{ip}{suffix}", flush=True)
     server.serve_forever()
 
 
