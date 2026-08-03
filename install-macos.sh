@@ -2,28 +2,39 @@
 # Install (or remove) the Roku LAN Remote server as a macOS launchd service
 # so it starts on boot and restarts if it crashes.
 #
-#   ./install-macos.sh              install/update using this repo's location
-#   ./install-macos.sh --uninstall  stop and remove the service
+#   sudo ./install-macos.sh              install/update using this repo's location
+#   sudo ./install-macos.sh --uninstall  stop and remove the service
 #
-# Uses the port from config.json. Ports below 1024 (e.g. 80, for a bare
-# http://tv.lan URL) need root, so those install as a system
-# LaunchDaemon via sudo; otherwise it's a per-user LaunchAgent.
+# Always a system LaunchDaemon running as root, so the server is up after a
+# reboot without anyone logging in.
+#
+# Root is required even on an unprivileged port. macOS Local Network Privacy
+# blocks a normal user's python from opening connections to LAN addresses --
+# the TV's ECP port fails with "[Errno 65] No route to host" -- and a launchd
+# job has no UI to request the permission. System daemons running as root are
+# exempt, so that is the only reliable way to reach the TV.
 set -eu
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 LABEL="com.roku.remote"
 AGENT_PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-DAEMON_PLIST="/Library/LaunchDaemons/$LABEL.plist"
+PLIST="/Library/LaunchDaemons/$LABEL.plist"
 PYTHON3="$(command -v python3)"
+RUN_USER="${SUDO_USER:-$(id -un)}"
 
 stop_existing() {
-    launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
-    [ -f "$AGENT_PLIST" ] && rm -f "$AGENT_PLIST"
-    if [ -f "$DAEMON_PLIST" ]; then
-        sudo launchctl bootout "system/$LABEL" 2>/dev/null || true
-        sudo rm -f "$DAEMON_PLIST"
-    fi
+    # Older versions of this script installed a per-user LaunchAgent; clear
+    # that out too so the two can't both be running.
+    launchctl bootout "gui/$(id -u "$RUN_USER")/$LABEL" 2>/dev/null || true
+    rm -f "$AGENT_PLIST"
+    launchctl bootout "system/$LABEL" 2>/dev/null || true
+    rm -f "$PLIST"
 }
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "Run with sudo: sudo $0 ${1:-}" >&2
+    exit 1
+fi
 
 if [ "${1:-}" = "--uninstall" ]; then
     stop_existing
@@ -33,21 +44,11 @@ fi
 
 PORT="$("$PYTHON3" -c "import json; print(json.load(open('$REPO_DIR/config.json')).get('server_port', 8000))" 2>/dev/null || echo 8000)"
 
-if [ "$PORT" -lt 1024 ]; then
-    PLIST="$DAEMON_PLIST"
-    SUDO="sudo"
-    DOMAIN="system"
-    echo "Port $PORT is privileged; installing as a system LaunchDaemon (needs sudo)."
-else
-    PLIST="$AGENT_PLIST"
-    SUDO=""
-    DOMAIN="gui/$(id -u)"
-fi
+echo "Installing as a root LaunchDaemon on port $PORT."
 
 stop_existing
 
-$SUDO mkdir -p "$(dirname "$PLIST")"
-$SUDO tee "$PLIST" > /dev/null <<EOF
+cat > "$PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -70,13 +71,27 @@ $SUDO tee "$PLIST" > /dev/null <<EOF
 </plist>
 EOF
 
-$SUDO launchctl bootstrap "$DOMAIN" "$PLIST"
+# bootstrap takes <domain-target> <service-path> as SEPARATE arguments; glued
+# together it silently does nothing and still exits 0.
+launchctl enable "system/$LABEL" 2>/dev/null || true
+launchctl bootstrap system "$PLIST"
 
-sleep 1
-if curl -s -o /dev/null --connect-timeout 3 "http://localhost:$PORT/api/status"; then
-    echo "Installed and running: http://$(hostname -s | tr '[:upper:]' '[:lower:]').local:$PORT"
-    echo "Logs: $REPO_DIR/server.log"
-    echo "If macOS asks to allow Python to accept local network connections, approve it."
-else
-    echo "Installed, but the server isn't answering yet. Check $REPO_DIR/server.log"
+if ! launchctl print "system/$LABEL" > /dev/null 2>&1; then
+    echo "FAILED: $LABEL did not register with launchd." >&2
+    exit 1
 fi
+
+i=0
+while [ "$i" -lt 15 ]; do
+    if curl -s -o /dev/null --connect-timeout 3 "http://localhost:$PORT/api/status"; then
+        echo "Installed and running on port $PORT."
+        echo "Logs: $REPO_DIR/server.log"
+        exit 0
+    fi
+    i=$((i + 1))
+    sleep 1
+done
+
+echo "Registered with launchd but not answering on port $PORT after 15s." >&2
+tail -20 "$REPO_DIR/server.log" 2>/dev/null >&2 || true
+exit 1
