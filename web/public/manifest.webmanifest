@@ -1,0 +1,12 @@
+{
+  "name": "Roku Remote",
+  "short_name": "Remote",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "icons": [
+    { "src": "/icons/app.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

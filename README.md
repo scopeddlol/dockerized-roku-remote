@@ -1,103 +1,114 @@
 # Roku LAN Remote
 
-Self-hosted web remote, live status dashboard, and automation runner for Roku
-TVs, plus a terminal (TUI) remote. **Zero dependencies** — Python 3 standard
-library only. Talks to the TV via Roku's built-in
-[External Control Protocol](https://developer.roku.com/dev/docs/external-control-api)
-(ECP, port 8060), the same API the official mobile app uses.
-
-- **Live status** — power, active app + icon, play/pause, position
-- **Full remote** — d-pad, playback, volume, power; works *inside* apps
-  (YouTube, Netflix, …)
-- **App launcher** — every channel with its real icon, one-tap input
-  switching (HDMI, AV, tuner)
-- **Text sender** — type into TV search/login keyboards
-- **Automations** — macro sequences, editable in the UI, each triggerable
-  via a plain HTTP call
-- **TUI** — a curses terminal remote, no server needed
+A self-hosted web remote, live status dashboard and automation runner for Roku
+TVs, packaged as a single Docker container. It talks to the TV over Roku's
+built-in [External Control Protocol](https://developer.roku.com/docs/developer-program/dev-tools/external-control-api.md)
+(ECP, port 8060), the same API the official mobile app uses, so nothing ever
+leaves your network.
 
 <p align="center">
-  <img src="screenshots/desktop.png" alt="Web app on desktop" width="630">
-  <img src="screenshots/mobile.png" alt="Web app on a phone" width="210">
+  <img src="screenshots/desktop.png" alt="Desktop: remote on the left, now playing, automations, inputs and apps on the right" width="720">
 </p>
-
-## Prerequisites
-
-- Roku TV/player and host computer on the same network.
-- Python 3.9+ on the host (preinstalled on macOS). Nothing to `pip install`.
-- On the TV: **Settings → System → Advanced system settings → Control by
-  mobile apps → Network access → Default** (no developer mode needed).
-
-## Quick start
-
-```sh
-git clone https://github.com/ajarteag/roku-lan-remote.git
-cd roku-lan-remote
-python3 discover.py --save   # find the TV, write its IP to config.json
-python3 server.py            # serve the web remote (prints its URLs)
-```
-
-- Open `http://<host-ip>:8000` from any device on the network.
-- iPhone: Share → **Add to Home Screen** for a fullscreen, app-like remote.
-- Desktop keys: arrows navigate · Enter OK · Backspace back · Esc home ·
-  Space play/pause.
-- Discovery searches every network interface. If it finds nothing, force a
-  subnet with `python3 discover.py --subnet 192.168.4 --save`, or copy the
-  TV's IP (**Settings → Network → About**) into `config.json`.
-
-## Terminal remote (TUI)
-
-```sh
-python3 roku_tui.py          # uses tv_ip from config.json; or --ip 192.168.1.50
-```
-
-- One-word launch: `alias tv='python3 ~/path/to/roku-lan-remote/roku_tui.py'`
-- Keys: arrows navigate · enter OK · delete back · `h` home ·
-  space play/pause · `<`/`>` rew/fwd · `r` replay · `i` options ·
-  `+`/`-` volume · `m` mute · `p` power · `a` app picker · `t` type mode ·
-  `^d` dictate · `q` quit
-
-### Dictation (macOS)
-
-In type mode, press `ctrl-d` to speak instead of type — handy for search
-boxes. Transcription runs on-device via Apple's speech recognizer through
-the [`hear`](https://sveinbjorn.org/hear) CLI (the TUI itself stays
-zero-dependency; it just shells out):
-
-```sh
-brew install sveinbjornt/hear/hear   # or grab the prebuilt binary from the site
-```
-
-- While dictating: the live transcript is shown; enter stops, esc cancels.
-- By default you then review the text — enter sends it to the TV as
-  keystrokes, esc discards, `ctrl-d` re-records.
-- To skip the review and send as soon as you stop: `--dictate send`, or set
-  `"dictation_send": "send"` in `config.json`.
-- First use prompts for microphone + speech-recognition permission for your
-  terminal app. Linux/Windows: the TUI works as before; dictation shows a
-  "macOS only" hint.
-
 <p align="center">
-  <img src="screenshots/tui.png" alt="TUI remote with live status bar" width="680">
-  <img src="screenshots/tui-apps.png" alt="TUI app picker" width="680">
+  <img src="screenshots/mobile.png" alt="Phone: remote tab" width="220">
+  <img src="screenshots/mobile-launch.png" alt="Phone: launch tab" width="220">
 </p>
+
+- **Live status**: power, current app with artwork, play/pause and a live progress bar
+- **Full remote**: D-pad, playback, volume and power. Works *inside* apps (YouTube, Netflix, …)
+- **Apps and inputs** with crisp brand logos, search, and one-tap HDMI/antenna switching
+- **Keyboard**: type into TV search and login boxes
+- **Automations**: build one-tap scenes visually; each one is also a webhook
+- **Modular layout**: show, hide, reorder and move every module between columns
+- **Built for phones too**: installs to the home screen, with a thumb-friendly tab bar and bottom sheets
+- **Light, dark or auto** theme
+
+## Quick start (Docker)
+
+```sh
+git clone https://github.com/scopeddlol/dockerized-roku-remote.git
+cd dockerized-roku-remote
+docker compose up -d --build
+```
+
+Open `http://<host-ip>:8000`, tap **Set up** and then **Scan**, and pick your TV.
+That's it.
+
+- On the TV, enable **Settings → System → Advanced system settings →
+  Control by mobile apps → Network access → Default**.
+- On an iPhone, use **Share → Add to Home Screen** for a fullscreen app.
+- Your TV choice and automations are stored in the `roku-data` volume, so they
+  survive rebuilds.
+
+### Configuration
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `8000` | Port the web UI listens on (use `80` for a bare `http://tv.lan`) |
+| `TV_IP` | empty | Preset the TV's address instead of choosing it in Settings |
+
+Set them in a `.env` file next to `compose.yaml`, or inline:
+`PORT=80 docker compose up -d`.
+
+### Networking: Linux vs. Docker Desktop
+
+`compose.yaml` uses **host networking** so the container can send the SSDP
+broadcast that finds Rokus automatically. That works on Linux, which covers
+most home servers, NASes and Raspberry Pis.
+
+On **Docker Desktop (macOS/Windows)**, use bridge mode:
+
+```sh
+docker compose -f compose.yaml -f compose.bridge.yaml up -d --build
+```
+
+Controlling the TV works exactly the same. Only auto-discovery is limited: in
+Settings, open *Scan a specific subnet* and enter your LAN prefix (for example
+`192.168.1`), or just type the TV's IP. You can find it on the TV under
+**Settings → Network → About**.
+
+### Try it without a TV
+
+A mock Roku ships in `dev/` for development and demos:
+
+```sh
+docker compose -f compose.yaml -f compose.bridge.yaml -f dev/compose.mock.yaml up --build
+```
+
+## Customizing the layout
+
+Tap the **layout** icon in the header to:
+
+- toggle any module on or off (*Live TV* and *Shortcuts* start hidden),
+- drag modules to reorder them,
+- move a module between the **Remote** column and the **Dashboard** column.
+  On phones these become the *Remote* and *Launch* tabs.
+
+Layouts are saved per device, so your phone and your desktop can differ.
 
 ## Automations
 
-`macros.json` holds a list of `{name, icon, steps}`, editable in the web UI
-under *Automations → Edit*. Steps run in order:
+Open **Automations → Edit** to build scenes from four step types: *Press* a
+remote key, *Open* an app or input, *Wait*, and *Type* text. Drag to reorder
+the steps and pick an icon.
 
-- `{"type": "keypress", "value": "PowerOn"}` — any ECP key
-  (`Home`, `Select`, `VolumeUp`, `PowerOff`, …)
-- `{"type": "launch", "value": "12"}` — app ID or TV input
-  (`tvinput.hdmi1`, …); `GET /api/apps` lists your IDs
-- `{"type": "delay", "value": 2000}` — milliseconds (max 30000)
-
-Each macro is an HTTP endpoint, so Apple Shortcuts, Siri, Raycast, cron, or
-Home Assistant can trigger it:
+Every automation is also an HTTP endpoint, so Apple Shortcuts, Siri, Home
+Assistant or cron can trigger it (the copy button in the editor gives you this
+line):
 
 ```sh
 curl -X POST "http://<host-ip>:8000/api/macro/Movie%20Night"
+```
+
+Automations live in `/data/macros.json` in the volume:
+
+```json
+{ "name": "Movie Night", "icon": "clapperboard", "steps": [
+  { "type": "keypress", "value": "PowerOn" },
+  { "type": "delay", "value": 2500 },
+  { "type": "launch", "value": "12" },
+  { "type": "text", "value": "stranger things" }
+]}
 ```
 
 ## API
@@ -105,82 +116,76 @@ curl -X POST "http://<host-ip>:8000/api/macro/Movie%20Night"
 | Route | Description |
 |---|---|
 | `GET /api/status` | power, active app, play state, position |
-| `GET /api/apps` | installed apps + inputs, with launch IDs |
-| `POST /api/keypress/<key>` | press a remote key |
-| `POST /api/launch/<id>` | launch an app or switch input |
-| `POST /api/text` | body `{"text": "hello"}` — types on the TV |
-| `GET/POST /api/macros` | read / replace the automation list |
+| `GET /api/apps` | installed apps and inputs, with launch IDs |
+| `GET /api/icon/<id>` | an app's artwork, served by the TV |
+| `POST /api/keypress/<key>` | press a remote key (`Home`, `Select`, `VolumeUp`, …) |
+| `POST /api/launch/<id>` | launch an app or switch input (`12`, `tvinput.hdmi1`, …) |
+| `POST /api/text` | body `{"text": "hello"}` types on the TV |
+| `GET/POST /api/macros` | read or replace the automation list (validated) |
 | `POST /api/macro/<name>` | run one automation |
-
-## Host it permanently (macOS)
-
-On an always-on machine (Mac mini/Studio, NAS, Pi):
-
-- Clone the repo and run `python3 discover.py --save` once.
-- Give the host a static IP / DHCP reservation in your router.
-- Run `./install-macos.sh` from the repo directory. It registers a launchd
-  service (starts on boot, restarts on crash) using the port from
-  `config.json`; logs go to `server.log`.
-- Approve the one-time macOS prompt to allow Python to accept local
-  network connections.
-- Re-run the script after changing `config.json`; remove with
-  `./install-macos.sh --uninstall`. (Linux: a systemd unit running
-  `python3 server.py`.)
+| `GET/POST /api/config` | read or set the TV address `{"tv_ip": "…"}` |
+| `GET /api/discover?subnet=192.168.1` | find Rokus on the network |
+| `GET /api/health` | container health check |
 
 ## A memorable URL (`http://tv.lan`)
 
-Give the host a name in your router's local DNS so nobody types IPs.
-`<host-ip>` below is the LAN IP of the machine running `server.py` — find it
-with `ipconfig getifaddr en0` (or the router's Clients page). If the host is
-on more than one network, use its IP on the **TV's router**.
+Give the Docker host a DHCP reservation, then add a local DNS record pointing
+`tv.lan` at it. On OpenWrt/GL.iNet routers:
 
-On GL.iNet / OpenWrt routers (dnsmasq):
+```sh
+uci add dhcp domain
+uci set dhcp.@domain[-1].name='tv.lan'
+uci set dhcp.@domain[-1].ip='<host-ip>'
+uci commit dhcp && /etc/init.d/dnsmasq restart
+```
 
-- Reserve `<host-ip>`: admin panel → **Clients** → the host → *Modify* →
-  bind the IP.
-- Add the DNS record — SSH to the router and run:
+Run with `PORT=80` for a bare `http://tv.lan`. Use a dotted name: Apple
+devices won't resolve single-label hosts like `http://tv`.
 
-  ```sh
-  uci add dhcp domain
-  uci set dhcp.@domain[-1].name='tv.lan'
-  uci set dhcp.@domain[-1].ip='<host-ip>'
-  uci commit dhcp && /etc/init.d/dnsmasq restart
-  ```
+## Development
 
-  (Or in LuCI: **Network → DHCP and DNS → Hostnames** → Add.)
-- For a bare `http://tv.lan` (no port): set `"server_port": 80` in
-  `config.json` and re-run `./install-macos.sh`; otherwise use
-  `http://tv.lan:8000`.
+```sh
+python3 dev/mock_roku.py &                          # fake TV on :8060
+TV_IP=127.0.0.1 python3 backend/server.py &         # API on :8000
+cd web && npm install && npm run dev                # UI with hot reload on :5173
+```
 
-Notes:
+**Layout**
 
-- Use a dotted name like `tv.lan` — Apple devices (Safari, all iOS browsers)
-  won't resolve single-label names like `http://tv`.
-- Don't use a dnsmasq wildcard (`address=/tv/...`) — it would capture real
-  `.tv` internet domains (including roku.tv) for the whole network.
-- On the first visit type `tv.lan/` (with the slash) so the browser treats
-  it as a site, not a search.
-- No-router-config alternative: set the host's local hostname to `tv`
-  (System Settings → General → Sharing) and use `http://tv.local:8000`.
+- `backend/`: stdlib-only Python (no pip installs)
+  - `server.py`: HTTP routes and serving the built UI
+  - `roku.py`: ECP client
+  - `discovery.py`: SSDP and subnet scan
+  - `storage.py`: config and automations, with validation
+- `web/`: React 19, Vite, TypeScript and Tailwind CSS v4
+  - `src/modules/`: one file per module, listed in `registry.tsx`
+  - `src/components/ui/`: shadcn-style primitives on Radix UI
+  - `src/lib/brands.ts`: maps app names to logos in `public/icons/brands`
+- `dev/`: the mock Roku and its compose override
 
-## Repo layout
+**Adding a module:** create a component in `web/src/modules/` and add one
+line to `MODULES` in `registry.tsx`. It shows up in Customize automatically.
 
-- `server.py` — web server + ECP proxy (stdlib only)
-- `static/` — the web UI
-- `roku_tui.py` — standalone terminal remote
-- `discover.py` — find Rokus on the LAN, `--save` writes `config.json`
-- `config.json` — TV IP + server port
-- `macros.json` — automation definitions
+**Adding a brand logo:** drop `<slug>.svg` (plus `<slug>-light.svg` if it's
+dark) into `web/public/icons/brands/` and add a match rule in `brands.ts`.
 
-## How it works
+**UI stack:** [Radix UI](https://www.radix-ui.com) primitives styled the
+[shadcn/ui](https://ui.shadcn.com) way, [Motion](https://motion.dev) for
+animation, [dnd-kit](https://dndkit.com) for drag and drop,
+[TanStack Query](https://tanstack.com/query) for live polling,
+[Zustand](https://zustand.docs.pmnd.rs) for saved layout,
+[Sonner](https://sonner.emilkowal.ski) toasts, [Vaul](https://vaul.emilkowal.ski)
+drawers and the [Geist](https://vercel.com/font) typeface.
 
-Roku devices expose a plain HTTP API on port 8060 (ECP): `POST /keypress/<key>`
-presses remote buttons (which is why navigation works inside any app),
-`POST /launch/<id>` opens apps and inputs, and `GET /query/*` reports device,
-app, and playback state. `server.py` proxies those endpoints, parses the XML
-into JSON, and serves the single-page UI in `static/`. The TUI talks to the
-TV directly.
+## Credits
 
-Not possible by design: screenshots/video of protected app content (Roku only
-allows screen capture for sideloaded dev channels), and there's no clean API
-for arbitrary TV settings — only what's reachable via remote keys.
+- App logos: [selfh.st/icons](https://selfh.st/icons) (CC BY 4.0) and
+  [Simple Icons](https://simpleicons.org) (CC0; the files prefixed `si-`).
+  Brand logos are trademarks of their respective owners.
+- UI icons: [Lucide](https://lucide.dev) (ISC).
+
+## Limits
+
+Roku only allows screen capture for sideloaded developer channels, so there's
+no screenshot or video preview. There's also no API for arbitrary TV
+settings; the remote can reach only what remote keys can.
