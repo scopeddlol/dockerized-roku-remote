@@ -1,5 +1,7 @@
 # Roku LAN Remote
 
+[![Docker image](https://github.com/scopeddlol/dockerized-roku-remote/actions/workflows/docker.yml/badge.svg)](https://github.com/scopeddlol/dockerized-roku-remote/actions/workflows/docker.yml)
+
 A self-hosted web remote, live status dashboard and automation runner for Roku
 TVs, packaged as a single Docker container. It talks to the TV over Roku's
 built-in [External Control Protocol](https://developer.roku.com/docs/developer-program/dev-tools/external-control-api.md)
@@ -28,8 +30,20 @@ leaves your network.
 ```sh
 git clone https://github.com/scopeddlol/dockerized-roku-remote.git
 cd dockerized-roku-remote
-docker compose up -d --build
+docker compose pull && docker compose up -d   # prebuilt image from GHCR
+# or build it yourself:  docker compose up -d --build
 ```
+
+No clone needed if you just want to run it:
+
+```sh
+docker run -d --name roku-remote --network host --restart unless-stopped \
+  -v roku-data:/data ghcr.io/scopeddlol/dockerized-roku-remote:latest
+```
+
+Images are published for `linux/amd64` and `linux/arm64` (Raspberry Pi,
+Apple silicon, ARM NAS). `:latest` tracks `main`; version tags like `v1.2.0`
+publish `:1.2.0`, `:1.2` and `:1`.
 
 Open `http://<host-ip>:8000`, tap **Set up** and then **Scan**, and pick your TV.
 That's it.
@@ -162,6 +176,8 @@ cd web && npm install && npm run dev                # UI with hot reload on :517
   - `src/components/ui/`: shadcn-style primitives on Radix UI
   - `src/lib/brands.ts`: maps app names to logos in `public/icons/brands`
 - `dev/`: the mock Roku and its compose override
+- `.github/workflows/docker.yml`: builds every PR; publishes to GHCR from
+  `main` and `v*` tags
 
 **Adding a module:** create a component in `web/src/modules/` and add one
 line to `MODULES` in `registry.tsx`. It shows up in Customize automatically.
