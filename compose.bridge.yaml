@@ -1,0 +1,10 @@
+# For Docker Desktop (macOS/Windows) or anywhere host networking isn't
+# available. The remote still controls the TV fine; network scan needs the
+# "Scan a specific subnet" field in Settings (e.g. 192.168.1), or set TV_IP.
+#
+#   docker compose -f compose.yaml -f compose.bridge.yaml up -d
+services:
+  roku-remote:
+    network_mode: !reset null
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"

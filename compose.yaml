@@ -1,0 +1,19 @@
+services:
+  roku-remote:
+    build: .
+    image: roku-remote
+    container_name: roku-remote
+    restart: unless-stopped
+    # Host networking lets the container see your LAN directly, which
+    # "Scan" in Settings needs (SSDP multicast). Linux only; see README for
+    # Docker Desktop on macOS/Windows.
+    network_mode: host
+    environment:
+      PORT: ${PORT:-8000}
+      # Optional: preset the TV instead of picking it in Settings.
+      TV_IP: ${TV_IP:-}
+    volumes:
+      - roku-data:/data
+
+volumes:
+  roku-data:

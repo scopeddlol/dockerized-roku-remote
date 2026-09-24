@@ -1,0 +1,36 @@
+[
+  {
+    "name": "Movie Night",
+    "icon": "clapperboard",
+    "steps": [
+      { "type": "keypress", "value": "PowerOn" },
+      { "type": "delay", "value": 2500 },
+      { "type": "launch", "value": "12" }
+    ]
+  },
+  {
+    "name": "YouTube",
+    "icon": "youtube",
+    "steps": [
+      { "type": "keypress", "value": "PowerOn" },
+      { "type": "delay", "value": 2000 },
+      { "type": "launch", "value": "837" }
+    ]
+  },
+  {
+    "name": "Game Time",
+    "icon": "gamepad",
+    "steps": [
+      { "type": "keypress", "value": "PowerOn" },
+      { "type": "delay", "value": 2000 },
+      { "type": "launch", "value": "tvinput.hdmi1" }
+    ]
+  },
+  {
+    "name": "Goodnight",
+    "icon": "moon",
+    "steps": [
+      { "type": "keypress", "value": "PowerOff" }
+    ]
+  }
+]

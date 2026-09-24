@@ -1,0 +1,15 @@
+# Try the whole stack with a fake TV, no Roku required:
+#
+#   docker compose -f compose.yaml -f compose.bridge.yaml -f dev/compose.mock.yaml up --build
+#   open http://localhost:8000
+services:
+  roku-remote:
+    environment:
+      TV_IP: mock-roku
+    depends_on: [mock-roku]
+
+  mock-roku:
+    image: python:3.13-alpine
+    volumes:
+      - ./dev/mock_roku.py:/mock_roku.py:ro
+    command: ["python", "-u", "/mock_roku.py"]
