@@ -1,7 +1,9 @@
 services:
   roku-remote:
+    # `docker compose pull` fetches the prebuilt image (amd64 + arm64);
+    # `docker compose up -d --build` builds it from this checkout instead.
+    image: ghcr.io/scopeddlol/dockerized-roku-remote:latest
     build: .
-    image: roku-remote
     container_name: roku-remote
     restart: unless-stopped
     # Host networking lets the container see your LAN directly, which
